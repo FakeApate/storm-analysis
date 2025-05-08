@@ -1,0 +1,163 @@
+﻿@page "/"
+@using System
+@inject IJSRuntime JS
+
+<PageTitle>Domain Generator</PageTitle>
+
+<h3 class="mb-4">💡 Domain Generator</h3>
+
+<p>
+    Generates deterministic daily domains using:<br />
+    <code>seed = dayOfYear + (year × staticPart)</code>
+</p>
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label class="form-label">Static part:</label>
+        <input type="number" @bind="staticSeedPart" class="form-control" />
+    </div>
+
+    <div class="col-md-2">
+        <label class="form-label">Year:</label>
+        <input type="number" @bind="selectedYear" class="form-control" min="2000" max="2100" />
+    </div>
+
+    <div class="col-md-3 align-self-end">
+        <button class="btn btn-primary w-100" @onclick="GenerateAllDomains" disabled="@isLoading">
+            @(isLoading ? "Generating..." : "Generate Domains")
+        </button>
+    </div>
+</div>
+
+@if (todayDomain is not null)
+{
+    <div class="alert alert-success">
+        📅 <strong>Today (@DateTime.Today.ToString("yyyy-MM-dd"))</strong>: <code>@todayDomain</code>
+    </div>
+}
+
+@if (domains is not null && domains.Count > 0)
+{
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <p class="mb-0"><strong>Total Domains:</strong> @domains.Count</p>
+        <button class="btn btn-outline-secondary" @onclick="DownloadCsv">
+            ⬇️ Download CSV
+        </button>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 120px;">Date</th>
+                    <th>Domain</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var entry in domains)
+                {
+                    var isToday = entry.Date.Date == DateTime.Today;
+                    <tr class="@(isToday ? "table-warning fw-bold" : "")">
+                        <td class="user-select-none">@entry.Date.ToString("yyyy-MM-dd")</td>
+                        <td>
+                            <code><span>@entry.Domain</span></code>
+                        </td>
+                    </tr>
+
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@if (showBackToTop)
+{
+    <button class="btn btn-secondary position-fixed" style="bottom: 20px; right: 20px; z-index: 1000;" @onclick="ScrollToTop">
+        ⬆ Back to Top
+    </button>
+}
+
+@code {
+    private int selectedYear = DateTime.Now.Year;
+    private int staticSeedPart = 985474;
+
+    private List<DomainEntry>? domains;
+    private string? todayDomain;
+    private bool isLoading = false;
+
+    private bool showBackToTop = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("setupScrollHandler", DotNetObjectReference.Create(this));
+        }
+    }
+
+    [JSInvokable]
+    public void OnScroll(int scrollY)
+    {
+        showBackToTop = scrollY > 200;
+        StateHasChanged();
+    }
+
+    private async Task ScrollToTop()
+    {
+        await JS.InvokeVoidAsync("scrollToTop");
+    }
+    private async Task GenerateAllDomains()
+    {
+        isLoading = true;
+        await Task.Delay(10); // Let UI update
+
+        int daysInYear = DateTime.IsLeapYear(selectedYear) ? 366 : 365;
+        domains = new List<DomainEntry>();
+        todayDomain = null;
+
+        var baseDate = new DateTime(selectedYear, 1, 1);
+
+        for (int i = 0; i < daysInYear; i++)
+        {
+            DateTime date = baseDate.AddDays(i);
+            int seed = date.DayOfYear + (selectedYear * staticSeedPart);
+            var rand = new Random(seed);
+            var alphabet = "abcdefghijklmn";
+
+            char[] domainPart = new char[15];
+            for (int j = 0; j < domainPart.Length; j++)
+            {
+                domainPart[j] = alphabet[rand.Next(0, alphabet.Length)];
+            }
+
+            string domain = new string(domainPart) + ".top";
+            domains.Add(new DomainEntry(date, domain));
+
+            if (date.Date == DateTime.Today)
+            {
+                todayDomain = domain;
+            }
+        }
+
+        isLoading = false;
+    }
+
+    private async Task DownloadCsv()
+{
+    if (domains is null) return;
+
+    var csvLines = domains
+        .Select(d => $"{d.Date:yyyy-MM-dd},{d.Domain}")
+        .Prepend("Date,Domain");
+
+    var csvContent = string.Join("\n", csvLines);
+    var bytes = System.Text.Encoding.UTF8.GetBytes(csvContent);
+    var base64 = Convert.ToBase64String(bytes);
+
+    var fileName = $"domains_{selectedYear}.csv";
+    var dataUrl = $"data:text/csv;base64,{base64}";
+
+    await JS.InvokeVoidAsync("downloadFile", dataUrl, fileName);
+}
+    private record DomainEntry(DateTime Date, string Domain);
+}

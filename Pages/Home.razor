@@ -109,7 +109,7 @@
     private async Task GenerateAllDomains()
     {
         isLoading = true;
-        await Task.Delay(10); // Let UI update
+        await Task.Delay(10);
 
         int daysInYear = DateTime.IsLeapYear(selectedYear) ? 366 : 365;
         domains = new List<DomainEntry>();
@@ -121,7 +121,7 @@
         {
             DateTime date = baseDate.AddDays(i);
             int seed = date.DayOfYear + (selectedYear * staticSeedPart);
-            var rand = new Random(seed);
+            var rand = new LegacyRandom(seed);
             var alphabet = "abcdefghijklmn";
 
             char[] domainPart = new char[15];
@@ -134,9 +134,7 @@
             domains.Add(new DomainEntry(date, domain));
 
             if (date.Date == DateTime.Today)
-            {
                 todayDomain = domain;
-            }
         }
 
         isLoading = false;

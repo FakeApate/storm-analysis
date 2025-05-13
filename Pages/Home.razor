@@ -1,6 +1,9 @@
 ﻿@page "/"
 @using System
+@using System.Net
+@using System.Net.Sockets
 @inject IJSRuntime JS
+@inject HttpClient Http
 
 <PageTitle>Domain Generator</PageTitle>
 
@@ -51,6 +54,7 @@
                 <tr>
                     <th style="width: 120px;">Date</th>
                     <th>Domain</th>
+                    <th>Resolving to ...</th>
                 </tr>
             </thead>
             <tbody>
@@ -62,6 +66,7 @@
                         <td>
                             <code><span>@entry.Domain</span></code>
                         </td>
+                        <td><code>@entry.ResolvedIPs</code></td>
                     </tr>
 
                 }
@@ -72,7 +77,8 @@
 
 @if (showBackToTop)
 {
-    <button class="btn btn-secondary position-fixed" style="bottom: 20px; right: 20px; z-index: 1000;" @onclick="ScrollToTop">
+    <button class="btn btn-secondary position-fixed" style="bottom: 20px; right: 20px; z-index: 1000;"
+        @onclick="ScrollToTop">
         ⬆ Back to Top
     </button>
 }
@@ -137,25 +143,86 @@
                 todayDomain = domain;
         }
 
+        await ResolveAllDomains();
         isLoading = false;
     }
 
     private async Task DownloadCsv()
-{
-    if (domains is null) return;
+    {
+        if (domains is null) return;
 
-    var csvLines = domains
+        var csvLines = domains
         .Select(d => $"{d.Date:yyyy-MM-dd},{d.Domain}")
         .Prepend("Date,Domain");
 
-    var csvContent = string.Join("\n", csvLines);
-    var bytes = System.Text.Encoding.UTF8.GetBytes(csvContent);
-    var base64 = Convert.ToBase64String(bytes);
+        var csvContent = string.Join("\n", csvLines);
+        var bytes = System.Text.Encoding.UTF8.GetBytes(csvContent);
+        var base64 = Convert.ToBase64String(bytes);
 
-    var fileName = $"domains_{selectedYear}.csv";
-    var dataUrl = $"data:text/csv;base64,{base64}";
+        var fileName = $"domains_{selectedYear}.csv";
+        var dataUrl = $"data:text/csv;base64,{base64}";
 
-    await JS.InvokeVoidAsync("downloadFile", dataUrl, fileName);
-}
-    private record DomainEntry(DateTime Date, string Domain);
+        await JS.InvokeVoidAsync("downloadFile", dataUrl, fileName);
+    }
+
+    private async Task ResolveAllDomains()
+    {
+        if (domains == null) return;
+
+        var throttler = new SemaphoreSlim(5); // max 5 concurrent lookups
+        var random = new Random();
+
+        var tasks = domains.Select(async entry =>
+        {
+            await throttler.WaitAsync();
+            try
+            {
+                entry.ResolvedIPs = await ResolveViaDnsHttps(entry.Domain);
+            }
+            finally
+            {
+                throttler.Release();
+            }
+        });
+
+        await Task.WhenAll(tasks);
+    }
+
+    private async Task<string> ResolveViaDnsHttps(string domain)
+    {
+        try
+        {
+            string baseUrl = "https://dns.google/resolve?type=A&name=";
+
+            var url = baseUrl + domain ;
+            var response = await Http.GetFromJsonAsync<DnsResponse>(url);
+
+            var ips = response?.Answer?
+                .Where(a => a.Type == 1) // A records
+                .Select(a => a.Data)
+                .ToList();
+
+            return (ips != null && ips.Count > 0) ? string.Join(", ", ips) : "NXDOMAIN";
+        }
+        catch
+        {
+            return "Error";
+        }
+    }
+
+    public class DnsResponse
+    {
+        public List<DnsAnswer>? Answer { get; set; }
+        public class DnsAnswer
+        {
+            public int Type { get; set; }
+            public string Data { get; set; } = string.Empty;
+        }
+    }
+
+
+    private record DomainEntry(DateTime Date, string Domain)
+    {
+        public string? ResolvedIPs { get; set; }
+    }
 }
